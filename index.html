@@ -1,101 +1,38 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Anonox Clan</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    body {
-      margin:0;
-      padding:0;
-      background:#121212;
-      font-family:monospace;
-      color:#0f0;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-    }
-    h2 { margin-top:20px; }
-    input, button {
-      padding:10px;
-      margin:5px;
-      font-size:16px;
-      background:#1e1e1e;
-      color:#0f0;
-      border:1px solid #00ff00;
-      border-radius:5px;
-    }
-    button { cursor:pointer; }
-    button:hover { background:#2a2a2a; }
-    .map-section {
-      width:90%;
-      max-width:800px;
-      height:500px;
-      margin:20px 0;
-      box-shadow:0 0 30px rgba(0,0,0,0.7);
-      border-radius:15px;
-      overflow:hidden;
-    }
-    #map { width:100%; height:100%; }
-    .leaflet-popup-content-wrapper {
-      background:#1e1e1e;
-      color:#00ff00;
-      font-weight:bold;
-      border-radius:10px;
-    }
-    .leaflet-popup-tip { background:#1e1e1e; }
-    .status {
-      padding:10px;
-      margin:10px;
-      border-radius:5px;
-      text-align:center;
-    }
-    .online { background:#004d00; }
-    .offline { background:#4d0000; }
-    .controls {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      margin: 10px;
-    }
-    .users-panel {
-      background: #1e1e1e;
-      padding: 15px;
-      border-radius: 10px;
-      margin: 10px;
-      width: 90%;
-      max-width: 800px;
-    }
-    .user-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-    .user-item {
-      background: #2a2a2a;
-      padding: 10px;
-      border-radius: 5px;
-      display: flex;
-      align-items: center;
-    }
-    .status-indicator {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-      margin-right: 8px;
-    }
-    .status-online {
-      background: #00ff00;
-      box-shadow: 0 0 5px #00ff00;
-    }
-    .status-offline {
-      background: #ff0000;
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Anonox Clan</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {margin:0;padding:0;background:#121212;font-family:monospace;color:#0f0;display:flex;flex-direction:column;align-items:center;}
+h2 { margin-top:20px; }
+input, button {padding:10px;margin:5px;font-size:16px;background:#1e1e1e;color:#0f0;border:1px solid #00ff00;border-radius:5px;width: 90%;max-width: 400px;}
+button { cursor:pointer; width:auto; }
+button:hover { background:#2a2a2a; }
+.map-section { width:90%; max-width:800px; height:500px; margin:20px 0; box-shadow:0 0 30px rgba(0,0,0,0.7); border-radius:15px; overflow:hidden; }
+#map { width:100%; height:100%; }
+.leaflet-popup-content-wrapper { background:#1e1e1e;color:#00ff00;font-weight:bold;border-radius:10px; }
+.leaflet-popup-tip { background:#1e1e1e; }
+.status { padding:10px;margin:10px;border-radius:5px;text-align:center; }
+.online { background:#004d00; }
+.offline { background:#4d0000; }
+.controls { display:flex; flex-direction:column; align-items:center; margin:10px; }
+.users-panel { background: #1e1e1e; padding: 15px; border-radius: 10px; margin: 10px; width: 90%; max-width: 800px; }
+.user-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.user-item { background: #2a2a2a; padding: 10px; border-radius: 5px; display: flex; align-items: center; }
+.status-indicator { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
+.status-online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
+.status-offline { background: #ff0000; }
+.message-panel { background: #1e1e1e; padding: 15px; border-radius: 10px; margin: 10px; width: 90%; max-width: 800px; }
+.message-form { display: flex; flex-direction: column; align-items: center; }
+textarea { padding:10px;margin:5px;width:90%;max-width:400px;height:80px;resize:vertical;background:#1e1e1e;color:#0f0;border:1px solid #00ff00;border-radius:5px;font-size:16px;}
+button.send-btn { width:auto; }
+</style>
 </head>
 <body>
-<h2>Mapa en vivo</h2>
+<h2>Anonox Clan</h2>
 <div class="controls">
   <input type="text" id="nick" placeholder="Escribe tu Nick" />
   <button id="startBtn">Iniciar Seguimiento</button>
@@ -106,15 +43,21 @@
   <h3>Usuarios conectados</h3>
   <div class="user-list" id="userList"></div>
 </div>
+<div class="message-panel">
+  <h3>Enviar mensaje por Topic</h3>
+  <div class="message-form">
+    <input type="text" id="topicInput" placeholder="Topic (Nick de usuario o región)" />
+    <textarea id="messageInput" placeholder="Escribe tu mensaje aquí..."></textarea>
+    <button class="send-btn" id="sendMessageBtn">Enviar Mensaje</button>
+  </div>
+</div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Firebase App -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-<!-- Firebase Database -->
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
 <script>
-// Configuración de Firebase
+// --- Configuración Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyCsM5ynPDbJCUV7HXq5NA3mmIXKxczc_RA",
   authDomain: "sypherionmaps.firebaseapp.com",
@@ -124,12 +67,10 @@ const firebaseConfig = {
   messagingSenderId: "529754955214",
   appId: "1:529754955214:web:c6b25dbafc9172eeb8df9f"
 };
-
-// Inicializar Firebase
 const app = firebase.initializeApp(firebaseConfig);
 const database = firebase.database();
 
-// Configuración del mapa
+// --- Mapa ---
 const map = L.map('map').setView([0,0],2);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
   attribution:'&copy; OpenStreetMap &copy; Carto',
@@ -137,314 +78,133 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
   maxZoom:20
 }).addTo(map);
 
-// Iconos para marcadores
-const greenIcon = L.icon({
-  iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64572.png",
-  iconSize:[50,50],
-  iconAnchor:[25,50],
-  popupAnchor:[0,-50]
-});
+const greenIcon = L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64572.png",iconSize:[50,50],iconAnchor:[25,50],popupAnchor:[0,-50]});
+const redIcon = L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64576.png",iconSize:[50,50],iconAnchor:[25,50],popupAnchor:[0,-50]});
 
-const redIcon = L.icon({
-  iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64576.png",
-  iconSize:[50,50],
-  iconAnchor:[25,50],
-  popupAnchor:[0,-50]
-});
+let currentUserKey="", userMarker=null, userCircle=null, markers={}, users={}, topicRegion="", positionUpdateInterval;
+let info={};
 
-// Variables globales
-let currentUserKey = "";
-let userMarker = null;
-let userCircle = null;
-let markers = {};
-let users = {};
-let info = {};
-let topicRegion = "";
-let positionUpdateInterval;
-
-// Función para obtener fingerprint del dispositivo
-async function getFingerprint() {
-  info = {
-    userAgent: navigator.userAgent,
-    platform: navigator.platform,
-    language: navigator.language,
-    screen: `${screen.width}x${screen.height}`,
-    colorDepth: screen.colorDepth + " bits",
-    coresCPU: navigator.hardwareConcurrency || "N/A",
-    memory: navigator.deviceMemory ? navigator.deviceMemory + " GB" : "N/A",
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    plugins: [...navigator.plugins].map(p => p.name)
-  };
-  
-  try {
-    const canvas = document.createElement("canvas");
-    const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
-    const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
-    info.gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "No detectada";
-  } catch(e) {
-    info.gpu = "No detectada";
-  }
-  
-  return info;
+// --- Funciones ---
+function drawLine(fromLatLng,toLatLng,color='#3498db'){
+  const line=L.polyline([fromLatLng,toLatLng],{color,weight:3}).addTo(map);
+  setTimeout(()=>map.removeLayer(line),10000);
 }
 
-// Función para actualizar la lista de usuarios
-function updateUserList() {
-  const userList = document.getElementById('userList');
-  userList.innerHTML = '';
-  
-  for (const userId in users) {
-    const user = users[userId];
-    const userItem = document.createElement('div');
-    userItem.className = 'user-item';
-    
-    userItem.innerHTML = `
-      <div class="status-indicator ${user.online ? 'status-online' : 'status-offline'}"></div>
-      <div>${user.nick} ${userId === currentUserKey ? '(Tú)' : ''}</div>
-    `;
-    
+function updateUserList(){
+  const userList = document.getElementById('userList'); userList.innerHTML='';
+  for(const key in users){
+    const user=users[key];
+    const userItem=document.createElement('div');
+    userItem.className='user-item';
+    userItem.innerHTML=`<div class="status-indicator ${user.online?'status-online':'status-offline'}"></div><div>${user.nick}${key===currentUserKey?' (Tú)':''}</div>`;
     userList.appendChild(userItem);
+    if(markers[key]){
+      markers[key].setLatLng([user.latitude,user.longitude]);
+      markers[key].setIcon(user.online?greenIcon:redIcon);
+      markers[key].setPopupContent(`${user.nick}${user.online?'':' (Desconectado)'}`);
+    } else {
+      markers[key]=L.marker([user.latitude,user.longitude],{icon:user.online?greenIcon:redIcon}).addTo(map)
+      .bindPopup(`${user.nick}${user.online?'':' (Desconectado)'}`);
+    }
   }
 }
 
-// Función para obtener la ubicación y enviar datos
-async function getLocationAndSend(nick) {
+// --- Escuchar usuarios y líneas ---
+database.ref("usuarios_online").on('value', snapshot => { users=snapshot.val()||{}; updateUserList(); });
+database.ref("lineas").on("child_added", snapshot=>{
+  const line=snapshot.val();
+  drawLine([line.fromLat,line.fromLon],[line.toLat,line.toLon], line.color);
+});
+
+// --- Obtener ubicación ---
+function getLocationAndSend(nick){
   if(!navigator.geolocation) return alert("No soporta geolocalización");
 
-  navigator.geolocation.getCurrentPosition(async pos => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const lat=pos.coords.latitude, lon=pos.coords.longitude;
+    map.setView([lat, lon],13);
 
-    // Actualizar el mapa
-    map.setView([lat, lon], 13);
-    
-    // Eliminar marcador anterior si existe
-    if (userMarker) {
-      map.removeLayer(userMarker);
-    }
-    
-    // Eliminar círculo anterior si existe
-    if (userCircle) {
-      map.removeLayer(userCircle);
-    }
-    
-    // Añadir nuevo marcador
-    userMarker = L.marker([lat, lon], {icon: greenIcon}).addTo(map);
-    userMarker.bindPopup(`🟢 ${nick} (Tú)`).openPopup();
-    
-    // Añadir círculo de animación
-    userCircle = L.circle([lat, lon], {
-      color: '#00ff00',
-      fillColor: '#00ff00',
-      fillOpacity: 0.3,
-      radius: 100
-    }).addTo(map);
-    
-    let growing = true;
-    setInterval(() => {
-      let r = userCircle.getRadius();
-      if(r >= 200) growing = false;
-      if(r <= 100) growing = true;
-      userCircle.setRadius(growing ? r+5 : r-5);
-    }, 100);
+    if(userMarker) map.removeLayer(userMarker);
+    if(userCircle) map.removeLayer(userCircle);
 
-    // Obtener fingerprint
-    await getFingerprint();
+    userMarker = L.marker([lat, lon], {icon: greenIcon}).addTo(map).bindPopup(`🟢 ${nick} (Tú)`).openPopup();
+    userCircle = L.circle([lat, lon],{color:'#00ff00',fillColor:'#00ff00',fillOpacity:0.3,radius:100}).addTo(map);
+    let growing=true;
+    setInterval(()=>{ let r=userCircle.getRadius(); if(r>=200) growing=false; if(r<=100) growing=true; userCircle.setRadius(growing?r+5:r-5); },100);
 
-    // Geocoding inverso para obtener país y ciudad
-    let region = {country: "Unknown", city: "Unknown"};
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-      const data = await res.json();
-      region.country = data.address.country || "Unknown";
-      region.city = data.address.city || data.address.town || data.address.village || "Unknown";
-    } catch(e) {
-      console.log("Error geocoding:", e);
-    }
+    // Fingerprint básico
+    info={nick, latitude:lat, longitude:lon, timestamp:Date.now()};
+    try{
+      const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
+      const data=await res.json();
+      info.country = data.address.country || "Unknown";
+      info.city = data.address.city || data.address.town || data.address.village || "Unknown";
+      topicRegion = (info.country+info.city).replace(/\s+/g,'').replace(/\//g,'');
+    }catch(e){ console.log(e); }
 
-    // Agregar coordenadas y link
-    info.latitude = lat;
-    info.longitude = lon;
-    info.googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
-    info.country = region.country;
-    info.city = region.city;
-    info.timestamp = new Date().toISOString();
-    info.nick = nick;
-
-    // Topic simple: concatenar país + ciudad sin espacios ni /
-    topicRegion = (region.country + region.city).replace(/\s+/g, '').replace(/\//g, '');
-    
-    // Enviar notificaciones a NTFY
-    try {
-      // Enviar al principal
-      await fetch('https://ntfy.sh/SypherioNoctvox', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(info)
-      });
-      
-      // Enviar al topic regional simple
-      await fetch(`https://ntfy.sh/${topicRegion}`, {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(info)
-      });
-    } catch (e) {
-      console.error("Error enviando a ntfy:", e);
-    }
-    
-    // Buscar si el usuario ya existe en la base de datos
-    const usersRef = database.ref("usuarios_online");
-    let userExists = false;
-    
-    usersRef.orderByChild("nick").equalTo(nick).once("value", snapshot => {
-      if (snapshot.exists()) {
-        // El usuario ya existe, obtener su clave
-        snapshot.forEach(childSnapshot => {
-          currentUserKey = childSnapshot.key;
-          userExists = true;
-          
-          // Actualizar usuario existente
-          database.ref("usuarios_online/" + currentUserKey).update({
-            latitude: lat,
-            longitude: lon,
-            googleMapsLink: info.googleMapsLink,
-            online: true,
-            timestamp: Date.now(),
-            fingerprint: info
-          }).then(() => {
-            console.log("Usuario actualizado en Firebase");
-          }).catch(error => {
-            console.error("Error actualizando usuario:", error);
-          });
+    // Guardar o actualizar usuario en Firebase
+    const usersRef=database.ref("usuarios_online");
+    usersRef.orderByChild("nick").equalTo(nick).once("value", snapshot=>{
+      if(snapshot.exists()){
+        snapshot.forEach(child=>{
+          currentUserKey=child.key;
+          database.ref("usuarios_online/"+currentUserKey).update({...info, online:true});
         });
       } else {
-        // El usuario no existe, crear uno nuevo
-        const newUserRef = usersRef.push();
-        currentUserKey = newUserRef.key;
-        
-        newUserRef.set({
-          nick,
-          latitude: lat,
-          longitude: lon,
-          googleMapsLink: info.googleMapsLink,
-          online: true,
-          timestamp: Date.now(),
-          fingerprint: info
-        }).then(() => {
-          console.log("Nuevo usuario creado en Firebase");
-        }).catch(error => {
-          console.error("Error creando usuario:", error);
-        });
-      }
-    });
-    
-    // Actualizar estado
-    document.getElementById("status").textContent = "Conectado";
-    document.getElementById("status").className = "status online";
-    
-    // Escuchar cambios en los usuarios
-    database.ref("usuarios_online").on('value', (snapshot) => {
-      users = snapshot.val() || {};
-      updateUserList();
-      
-      // Añadir o actualizar marcadores
-      for (const key in users) {
-        const data = users[key];
-        
-        if (markers[key]) {
-          // Actualizar posición existente
-          markers[key].setLatLng([data.latitude, data.longitude]);
-          markers[key].setIcon(data.online ? greenIcon : redIcon);
-          markers[key].setPopupContent(`${data.nick}${data.online ? "" : " (Desconectado)"}`);
-        } else {
-          // Crear nuevo marcador
-          markers[key] = L.marker([data.latitude, data.longitude], {
-            icon: data.online ? greenIcon : redIcon
-          }).addTo(map).bindPopup(`${data.nick}${data.online ? "" : " (Desconectado)"}`);
-        }
+        const newUserRef=usersRef.push();
+        currentUserKey=newUserRef.key;
+        newUserRef.set({...info, online:true});
       }
     });
 
-    // Actualizar posición cada 5 segundos
-    if (positionUpdateInterval) {
-      clearInterval(positionUpdateInterval);
-    }
-    
-    positionUpdateInterval = setInterval(() => {
-      navigator.geolocation.getCurrentPosition(pos => {
-        const lat = pos.coords.latitude;
-        const lon = pos.coords.longitude;
-        const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
-        
-        // Actualizar en Firebase
-        if (currentUserKey) {
-          database.ref("usuarios_online/" + currentUserKey).update({
-            latitude: lat,
-            longitude: lon,
-            googleMapsLink: googleMapsLink,
-            online: true,
-            timestamp: Date.now()
-          }).catch(error => {
-            console.error("Error actualizando Firebase:", error);
-          });
-        }
-        
-        // Actualizar nuestra posición en el mapa
+    document.getElementById("status").textContent="Conectado";
+    document.getElementById("status").className="status online";
+
+    if(positionUpdateInterval) clearInterval(positionUpdateInterval);
+    positionUpdateInterval = setInterval(()=>{
+      navigator.geolocation.getCurrentPosition(pos=>{
+        const lat=pos.coords.latitude, lon=pos.coords.longitude;
+        if(currentUserKey) database.ref("usuarios_online/"+currentUserKey).update({latitude:lat,longitude:lon,timestamp:Date.now()});
         userMarker.setLatLng([lat, lon]);
         userCircle.setLatLng([lat, lon]);
       });
-    }, 5000);
-
-  }, err => {
-    alert("No se pudo obtener ubicación: " + err.message);
-    document.getElementById("status").textContent = "Error de geolocalización";
-    document.getElementById("status").className = "status offline";
-  });
+    },5000);
+  },err=>{ alert("No se pudo obtener ubicación: "+err.message); document.getElementById("status").textContent="Error de geolocalización"; document.getElementById("status").className="status offline"; });
 }
 
-// Evento para iniciar
-document.getElementById("startBtn").onclick = () => {
-  const nick = document.getElementById("nick").value.trim();
-  if (!nick) return alert("Escribe un Nick");
-  
-  // Iniciar proceso de geolocalización
-  getLocationAndSend(nick);
-};
+// --- Enviar mensaje al topic ---
+async function sendMessageToTopic(topic,message){
+  if(!currentUserKey) return alert("Debes estar conectado");
 
-// Aviso de desconexión
-window.addEventListener("beforeunload", () => {
-  if (currentUserKey) {
-    // Enviar estado offline a Firebase
-    database.ref("usuarios_online/" + currentUserKey).update({
-      online: false,
-      timestamp: Date.now()
-    }).catch(error => {
-      console.error("Error actualizando estado offline:", error);
-    });
-    
-    // Enviar notificación de desconexión a NTFY
-    if (info.latitude) {
-      const desconexion = {
-        ...info,
-        event: "desconexión",
-        timestamp: new Date().toISOString()
-      };
-      
-      fetch('https://ntfy.sh/SypherioNoctvox', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(desconexion)
-      }).catch(e => console.error("Error enviando desconexión:", e));
-      
-      if (topicRegion) {
-        fetch(`https://ntfy.sh/${topicRegion}`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(desconexion)
-        }).catch(e => console.error("Error enviando desconexión regional:", e));
-      }
-    }
+  // Enviar a NTFY solo Nick: mensaje
+  try { await fetch(`https://ntfy.sh/${topic}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(`${info.nick}: ${message}`)}); }
+  catch(e){console.error(e);}
+
+  // Determinar destinatario
+  let targetUser=null, targetRegion=null;
+  for(const key in users){
+    if(users[key].nick===topic) targetUser=users[key];
+    const region=(users[key].country+users[key].city).replace(/\s+/g,'').replace(/\//g,'');
+    if(region===topic) targetRegion=users[key];
+  }
+
+  let color='#3498db', toLat, toLon;
+  if(targetUser){ color='#3498db'; toLat=targetUser.latitude; toLon=targetUser.longitude; }
+  else if(targetRegion){ color='#e67e22'; toLat=targetRegion.latitude; toLon=targetRegion.longitude; }
+  else return alert("Topic desconocido");
+
+  // Guardar línea en Firebase
+  database.ref("lineas").push().set({fromLat:info.latitude,fromLon:info.longitude,toLat,toLon,color});
+}
+
+// --- Eventos ---
+document.getElementById("startBtn").onclick=()=>{ const nick=document.getElementById("nick").value.trim(); if(!nick)return alert("Escribe un Nick"); getLocationAndSend(nick); };
+document.getElementById("sendMessageBtn").onclick=()=>{ const topic=document.getElementById("topicInput").value.trim(); const message=document.getElementById("messageInput").value.trim(); if(!topic||!message)return alert("Debes especificar topic y mensaje"); sendMessageToTopic(topic,message); document.getElementById("messageInput").value=''; };
+
+// --- Antes de cerrar ---
+window.addEventListener("beforeunload",()=>{
+  if(currentUserKey){
+    database.ref("usuarios_online/"+currentUserKey).update({online:false,timestamp:Date.now()});
   }
 });
 </script>
