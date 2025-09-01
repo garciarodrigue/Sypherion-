@@ -2,51 +2,81 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mapa en Tiempo Real</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <title>Globo Hacker 3D</title>
   <style>
-    #map {
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: black;
+    }
+    #globeViz {
+      width: 100vw;
       height: 100vh;
-      width: 100%;
     }
   </style>
 </head>
 <body>
-  <div id="map"></div>
+  <div id="globeViz"></div>
 
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <!-- Three.js + Three-Globe -->
+  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
+  <script src="https://unpkg.com/three-globe"></script>
+  <script src="https://unpkg.com/three/examples/js/controls/OrbitControls.js"></script>
+
   <script>
-    // Crear mapa centrado en 0,0
-    const map = L.map('map').setView([0, 0], 2);
+    const Globe = new ThreeGlobe()
+      .globeImageUrl("//unpkg.com/three-globe/example/img/earth-night.jpg")
+      .bumpImageUrl("//unpkg.com/three-globe/example/img/earth-topology.png");
 
-    // Cargar tiles (OpenStreetMap)
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    const renderer = new THREE.WebGLRenderer();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.getElementById("globeViz").appendChild(renderer.domElement);
 
-    // Pedir ubicación al usuario
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lon = pos.coords.longitude;
+    const scene = new THREE.Scene();
+    scene.add(new THREE.AmbientLight(0xbbbbbb));
+    scene.add(new THREE.DirectionalLight(0xffffff, 0.6));
 
-          // Centrar mapa en la ubicación del usuario
-          map.setView([lat, lon], 13);
+    const camera = new THREE.PerspectiveCamera();
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    camera.position.z = 350;
 
-          // Marcar la ubicación
-          L.marker([lat, lon]).addTo(map)
-            .bindPopup("📍 Aquí estás tú")
-            .openPopup();
-        },
-        (err) => {
-          alert("No se pudo obtener la ubicación: " + err.message);
-        }
-      );
-    } else {
-      alert("Tu navegador no soporta geolocalización.");
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableZoom = true;
+
+    scene.add(Globe);
+
+    // Icono calavera verde
+    const skullTexture = new THREE.TextureLoader().load("https://i.ibb.co/VpWwB0Q/skull-green.png");
+    const skullMaterial = new THREE.SpriteMaterial({ map: skullTexture, color: 0x00ff00 });
+    const skull = new THREE.Sprite(skullMaterial);
+    skull.scale.set(15, 15, 1);
+
+    // Función para añadir la calavera en ubicación real
+    function addMarker(lat, lng) {
+      const { x, y, z } = Globe.getCoords(lat, lng, 350);
+      skull.position.set(x, y, z);
+      scene.add(skull);
     }
+
+    // Pedir ubicación
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        addMarker(lat, lng);
+      }, err => {
+        console.error("Error obteniendo ubicación:", err);
+      });
+    }
+
+    // Animación
+    (function animate() {
+      requestAnimationFrame(animate);
+      Globe.rotation.y += 0.001;
+      controls.update();
+      renderer.render(scene, camera);
+    })();
   </script>
 </body>
 </html>
