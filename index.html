@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Mapa en vivo</title>
+  <title>Mapa en vivo con Firebase</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -30,8 +30,8 @@
     button:hover { background:#2a2a2a; }
     .map-section {
       width:90%;
-      max-width:600px;
-      height:400px;
+      max-width:800px;
+      height:500px;
       margin:20px 0;
       box-shadow:0 0 30px rgba(0,0,0,0.7);
       border-radius:15px;
@@ -59,20 +59,76 @@
       align-items: center;
       margin: 10px;
     }
+    .users-panel {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      margin: 10px;
+      width: 90%;
+      max-width: 800px;
+    }
+    .user-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .user-item {
+      background: #2a2a2a;
+      padding: 10px;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+    }
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-online {
+      background: #00ff00;
+      box-shadow: 0 0 5px #00ff00;
+    }
+    .status-offline {
+      background: #ff0000;
+    }
   </style>
 </head>
 <body>
-<h2>Mapa en vivo</h2>
+<h2>Mapa en vivo con Firebase</h2>
 <div class="controls">
   <input type="text" id="nick" placeholder="Escribe tu Nick" />
   <button id="startBtn">Iniciar Seguimiento</button>
 </div>
 <div class="status offline" id="status">Desconectado</div>
 <div class="map-section"><div id="map"></div></div>
+<div class="users-panel">
+  <h3>Usuarios conectados</h3>
+  <div class="user-list" id="userList"></div>
+</div>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<!-- Firebase App -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+<!-- Firebase Database -->
+<script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
 <script>
+// Configuración de Firebase
+const firebaseConfig = {
+  apiKey: "AIzaSyCsM5ynPDbJCUV7HXq5NA3mmIXKxczc_RA",
+  authDomain: "sypherionmaps.firebaseapp.com",
+  databaseURL: "https://sypherionmaps-default-rtdb.firebaseio.com",
+  projectId: "sypherionmaps",
+  storageBucket: "sypherionmaps.firebasestorage.app",
+  messagingSenderId: "529754955214",
+  appId: "1:529754955214:web:c6b25dbafc9172eeb8df9f"
+};
+
+// Inicializar Firebase
+const app = firebase.initializeApp(firebaseConfig);
+const database = firebase.database();
+
 // Configuración del mapa
 const map = L.map('map').setView([0,0],2);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
@@ -101,6 +157,7 @@ let uid = "";
 let userMarker = null;
 let userCircle = null;
 let markers = {};
+let users = {};
 let info = {};
 let topicRegion = "";
 let positionUpdateInterval;
@@ -129,6 +186,25 @@ async function getFingerprint() {
   }
   
   return info;
+}
+
+// Función para actualizar la lista de usuarios
+function updateUserList() {
+  const userList = document.getElementById('userList');
+  userList.innerHTML = '';
+  
+  for (const userId in users) {
+    const user = users[userId];
+    const userItem = document.createElement('div');
+    userItem.className = 'user-item';
+    
+    userItem.innerHTML = `
+      <div class="status-indicator ${user.online ? 'status-online' : 'status-offline'}"></div>
+      <div>${user.nick} ${userId === uid ? '(Tú)' : ''}</div>
+    `;
+    
+    userList.appendChild(userItem);
+  }
 }
 
 // Función para obtener la ubicación y enviar datos
@@ -198,7 +274,7 @@ async function getLocationAndSend(nick) {
     // Topic simple: concatenar país + ciudad sin espacios ni /
     topicRegion = (region.country + region.city).replace(/\s+/g, '').replace(/\//g, '');
     
-    // Enviar notificaciones
+    // Enviar notificaciones a NTFY
     try {
       // Enviar al principal
       await fetch('https://ntfy.sh/SypherioNoctvox', {
@@ -217,9 +293,58 @@ async function getLocationAndSend(nick) {
       console.error("Error enviando a ntfy:", e);
     }
     
+    // Guardar en Firebase
+    database.ref("usuarios_online/" + uid).set({
+      nick,
+      latitude: lat,
+      longitude: lon,
+      googleMapsLink: info.googleMapsLink,
+      online: true,
+      timestamp: Date.now(),
+      fingerprint: info
+    }).then(() => {
+      console.log("Datos enviados a Firebase");
+    }).catch(error => {
+      console.error("Error enviando a Firebase:", error);
+    });
+    
     // Actualizar estado
     document.getElementById("status").textContent = "Conectado";
     document.getElementById("status").className = "status online";
+    
+    // Escuchar cambios en los usuarios
+    database.ref("usuarios_online").on('value', (snapshot) => {
+      users = snapshot.val() || {};
+      updateUserList();
+      
+      // Eliminar marcadores de usuarios que ya no están
+      for (const key in markers) {
+        if (!users[key]) {
+          map.removeLayer(markers[key]);
+          delete markers[key];
+        }
+      }
+      
+      // Añadir o actualizar marcadores
+      for (const key in users) {
+        const data = users[key];
+        
+        // No mostrar nuestro propio marcador otra vez (ya lo tenemos)
+        if (key === uid) continue;
+        
+        if (markers[key]) {
+          // Actualizar posición existente
+          markers[key].setLatLng([data.latitude, data.longitude]);
+          markers[key].setIcon(data.online ? greenIcon : redIcon);
+          markers[key].setPopupContent(`${data.nick}${data.online ? "" : " (Desconectado)"}`);
+        } else {
+          // Crear nuevo marcador
+          markers[key] = L.marker([data.latitude, data.longitude], {
+            icon: data.online ? greenIcon : redIcon
+          }).addTo(map).bindPopup(`${data.nick}${data.online ? "" : " (Desconectado)"}`);
+        }
+      }
+    });
 
     // Actualizar posición cada 5 segundos
     if (positionUpdateInterval) {
@@ -230,27 +355,18 @@ async function getLocationAndSend(nick) {
       navigator.geolocation.getCurrentPosition(pos => {
         const lat = pos.coords.latitude;
         const lon = pos.coords.longitude;
+        const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
         
-        // Actualizar información
-        info.latitude = lat;
-        info.longitude = lon;
-        info.googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
-        info.timestamp = new Date().toISOString();
-        
-        // Enviar actualización a los topics
-        fetch('https://ntfy.sh/SypherioNoctvox', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify(info)
-        }).catch(e => console.error("Error actualizando ntfy:", e));
-        
-        if (topicRegion) {
-          fetch(`https://ntfy.sh/${topicRegion}`, {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify(info)
-          }).catch(e => console.error("Error actualizando ntfy regional:", e));
-        }
+        // Actualizar en Firebase
+        database.ref("usuarios_online/" + uid).update({
+          latitude: lat,
+          longitude: lon,
+          googleMapsLink: googleMapsLink,
+          online: true,
+          timestamp: Date.now()
+        }).catch(error => {
+          console.error("Error actualizando Firebase:", error);
+        });
         
         // Actualizar nuestra posición en el mapa
         userMarker.setLatLng([lat, lon]);
@@ -279,26 +395,36 @@ document.getElementById("startBtn").onclick = () => {
 
 // Aviso de desconexión
 window.addEventListener("beforeunload", () => {
-  if (uid && info.latitude) {
-    const desconexion = {
-      ...info,
-      event: "desconexión",
-      timestamp: new Date().toISOString()
-    };
+  if (uid) {
+    // Enviar estado offline a Firebase
+    database.ref("usuarios_online/" + uid).update({
+      online: false,
+      timestamp: Date.now()
+    }).catch(error => {
+      console.error("Error actualizando estado offline:", error);
+    });
     
-    // Enviar notificación de desconexión
-    fetch('https://ntfy.sh/SypherioNoctvox', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(desconexion)
-    }).catch(e => console.error("Error enviando desconexión:", e));
-    
-    if (topicRegion) {
-      fetch(`https://ntfy.sh/${topicRegion}`, {
+    // Enviar notificación de desconexión a NTFY
+    if (info.latitude) {
+      const desconexion = {
+        ...info,
+        event: "desconexión",
+        timestamp: new Date().toISOString()
+      };
+      
+      fetch('https://ntfy.sh/SypherioNoctvox', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(desconexion)
-      }).catch(e => console.error("Error enviando desconexión regional:", e));
+      }).catch(e => console.error("Error enviando desconexión:", e));
+      
+      if (topicRegion) {
+        fetch(`https://ntfy.sh/${topicRegion}`, {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(desconexion)
+        }).catch(e => console.error("Error enviando desconexión regional:", e));
+      }
     }
   }
 });
