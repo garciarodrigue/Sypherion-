@@ -153,7 +153,7 @@ const redIcon = L.icon({
 });
 
 // Variables globales
-let uid = "";
+let currentUserKey = "";
 let userMarker = null;
 let userCircle = null;
 let markers = {};
@@ -200,7 +200,7 @@ function updateUserList() {
     
     userItem.innerHTML = `
       <div class="status-indicator ${user.online ? 'status-online' : 'status-offline'}"></div>
-      <div>${user.nick} ${userId === uid ? '(Tú)' : ''}</div>
+      <div>${user.nick} ${userId === currentUserKey ? '(Tú)' : ''}</div>
     `;
     
     userList.appendChild(userItem);
@@ -293,19 +293,50 @@ async function getLocationAndSend(nick) {
       console.error("Error enviando a ntfy:", e);
     }
     
-    // Guardar en Firebase
-    database.ref("usuarios_online/" + uid).set({
-      nick,
-      latitude: lat,
-      longitude: lon,
-      googleMapsLink: info.googleMapsLink,
-      online: true,
-      timestamp: Date.now(),
-      fingerprint: info
-    }).then(() => {
-      console.log("Datos enviados a Firebase");
-    }).catch(error => {
-      console.error("Error enviando a Firebase:", error);
+    // Buscar si el usuario ya existe en la base de datos
+    const usersRef = database.ref("usuarios_online");
+    let userExists = false;
+    
+    usersRef.orderByChild("nick").equalTo(nick).once("value", snapshot => {
+      if (snapshot.exists()) {
+        // El usuario ya existe, obtener su clave
+        snapshot.forEach(childSnapshot => {
+          currentUserKey = childSnapshot.key;
+          userExists = true;
+          
+          // Actualizar usuario existente
+          database.ref("usuarios_online/" + currentUserKey).update({
+            latitude: lat,
+            longitude: lon,
+            googleMapsLink: info.googleMapsLink,
+            online: true,
+            timestamp: Date.now(),
+            fingerprint: info
+          }).then(() => {
+            console.log("Usuario actualizado en Firebase");
+          }).catch(error => {
+            console.error("Error actualizando usuario:", error);
+          });
+        });
+      } else {
+        // El usuario no existe, crear uno nuevo
+        const newUserRef = usersRef.push();
+        currentUserKey = newUserRef.key;
+        
+        newUserRef.set({
+          nick,
+          latitude: lat,
+          longitude: lon,
+          googleMapsLink: info.googleMapsLink,
+          online: true,
+          timestamp: Date.now(),
+          fingerprint: info
+        }).then(() => {
+          console.log("Nuevo usuario creado en Firebase");
+        }).catch(error => {
+          console.error("Error creando usuario:", error);
+        });
+      }
     });
     
     // Actualizar estado
@@ -317,20 +348,9 @@ async function getLocationAndSend(nick) {
       users = snapshot.val() || {};
       updateUserList();
       
-      // Eliminar marcadores de usuarios que ya no están
-      for (const key in markers) {
-        if (!users[key]) {
-          map.removeLayer(markers[key]);
-          delete markers[key];
-        }
-      }
-      
       // Añadir o actualizar marcadores
       for (const key in users) {
         const data = users[key];
-        
-        // No mostrar nuestro propio marcador otra vez (ya lo tenemos)
-        if (key === uid) continue;
         
         if (markers[key]) {
           // Actualizar posición existente
@@ -358,15 +378,17 @@ async function getLocationAndSend(nick) {
         const googleMapsLink = `https://www.google.com/maps?q=${lat},${lon}`;
         
         // Actualizar en Firebase
-        database.ref("usuarios_online/" + uid).update({
-          latitude: lat,
-          longitude: lon,
-          googleMapsLink: googleMapsLink,
-          online: true,
-          timestamp: Date.now()
-        }).catch(error => {
-          console.error("Error actualizando Firebase:", error);
-        });
+        if (currentUserKey) {
+          database.ref("usuarios_online/" + currentUserKey).update({
+            latitude: lat,
+            longitude: lon,
+            googleMapsLink: googleMapsLink,
+            online: true,
+            timestamp: Date.now()
+          }).catch(error => {
+            console.error("Error actualizando Firebase:", error);
+          });
+        }
         
         // Actualizar nuestra posición en el mapa
         userMarker.setLatLng([lat, lon]);
@@ -386,18 +408,15 @@ document.getElementById("startBtn").onclick = () => {
   const nick = document.getElementById("nick").value.trim();
   if (!nick) return alert("Escribe un Nick");
   
-  // Generar UID único
-  uid = nick + "_" + Date.now();
-  
   // Iniciar proceso de geolocalización
   getLocationAndSend(nick);
 };
 
 // Aviso de desconexión
 window.addEventListener("beforeunload", () => {
-  if (uid) {
+  if (currentUserKey) {
     // Enviar estado offline a Firebase
-    database.ref("usuarios_online/" + uid).update({
+    database.ref("usuarios_online/" + currentUserKey).update({
       online: false,
       timestamp: Date.now()
     }).catch(error => {
