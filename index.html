@@ -6,207 +6,107 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body {margin:0;padding:0;background:#121212;font-family:monospace;color:#0f0;display:flex;flex-direction:column;align-items:center;}
-h2 { margin-top:20px; }
-input, button {padding:10px;margin:5px;font-size:16px;background:#1e1e1e;color:#0f0;border:1px solid #00ff00;border-radius:5px;width: 90%;max-width: 400px;}
-button { cursor:pointer; width:auto; }
-button:hover { background:#2a2a2a; }
-.map-section { width:90%; max-width:800px; height:500px; margin:20px 0; box-shadow:0 0 30px rgba(0,0,0,0.7); border-radius:15px; overflow:hidden; }
-#map { width:100%; height:100%; }
-.leaflet-popup-content-wrapper { background:#1e1e1e;color:#00ff00;font-weight:bold;border-radius:10px; }
-.leaflet-popup-tip { background:#1e1e1e; }
-.status { padding:10px;margin:10px;border-radius:5px;text-align:center; }
-.online { background:#004d00; }
-.offline { background:#4d0000; }
-.controls { display:flex; flex-direction:column; align-items:center; margin:10px; }
-.users-panel { background: #1e1e1e; padding: 15px; border-radius: 10px; margin: 10px; width: 90%; max-width: 800px; }
-.user-list { display: flex; flex-wrap: wrap; gap: 10px; }
-.user-item { background: #2a2a2a; padding: 10px; border-radius: 5px; display: flex; align-items: center; }
-.status-indicator { width: 12px; height: 12px; border-radius: 50%; margin-right: 8px; }
-.status-online { background: #00ff00; box-shadow: 0 0 5px #00ff00; }
-.status-offline { background: #ff0000; }
-.message-panel { background: #1e1e1e; padding: 15px; border-radius: 10px; margin: 10px; width: 90%; max-width: 800px; }
-.message-form { display: flex; flex-direction: column; align-items: center; }
-textarea { padding:10px;margin:5px;width:90%;max-width:400px;height:80px;resize:vertical;background:#1e1e1e;color:#0f0;border:1px solid #00ff00;border-radius:5px;font-size:16px;}
-button.send-btn { width:auto; }
+body{margin:0;padding:0;background:#121212;font-family:monospace;color:#0f0;display:flex;flex-direction:column;align-items:center}
+h2{margin:20px 0}
+input,button,textarea{padding:10px;margin:5px;font-size:16px;background:#1e1e1e;color:#0f0;border:1px solid #0f0;border-radius:5px}
+button{cursor:pointer}button:hover{background:#2a2a2a}
+.map-section{width:90%;max-width:800px;height:500px;margin:10px 0;border-radius:15px;overflow:hidden;box-shadow:0 0 30px #000}
+#map{width:100%;height:100%}
+.status{padding:10px;margin:10px;border-radius:5px;text-align:center}
+.online{background:#040}.offline{background:#400}
+.users-panel,.message-panel{background:#1e1e1e;padding:10px;border-radius:10px;margin:10px;width:90%;max-width:800px}
+.user-list{display:flex;flex-wrap:wrap;gap:10px}
+.user-item{background:#2a2a2a;padding:5px 10px;border-radius:5px;display:flex;align-items:center}
+.status-indicator{width:12px;height:12px;border-radius:50%;margin-right:5px}
+.status-online{background:#0f0;box-shadow:0 0 5px #0f0}.status-offline{background:#f00}
+#toggleMessages{position:fixed;bottom:20px;right:20px;background:#0f0;color:#000;font-weight:bold;border-radius:50%;width:50px;height:50px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 0 10px #0f0}
+.message-panel{max-height:0;overflow:hidden;transition:max-height .5s ease,padding .3s ease}
+.message-panel.show{max-height:400px;padding:15px}
+.chat-popup{position:fixed;bottom:80px;right:20px;background:#000;border:1px solid #0f0;color:#0f0;padding:10px;border-radius:8px;max-width:250px;opacity:.9;animation:fadeIn .5s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(20px)}to{opacity:.9;transform:translateY(0)}}
 </style>
 </head>
 <body>
 <h2>Anonox Clan</h2>
-<div class="controls">
-  <input type="text" id="nick" placeholder="Escribe tu Nick" />
-  <button id="startBtn">Iniciar Seguimiento</button>
-</div>
-<div class="status offline" id="status">Desconectado</div>
+<div><input id="nick" placeholder="Nick"/><button id="startBtn">Iniciar</button></div>
+<div id="status" class="status offline">Desconectado</div>
 <div class="map-section"><div id="map"></div></div>
-<div class="users-panel">
-  <h3>Usuarios conectados</h3>
-  <div class="user-list" id="userList"></div>
+<div class="users-panel"><h3>Usuarios</h3><div id="userList" class="user-list"></div></div>
+
+<!-- Mensajes desplegables -->
+<div id="messagePanel" class="message-panel">
+  <h3>Enviar mensaje</h3>
+  <input id="topicInput" placeholder="Nick o Región"/>
+  <textarea id="messageInput" placeholder="Escribe..."></textarea>
+  <button id="sendMessageBtn">Enviar</button>
 </div>
-<div class="message-panel">
-  <h3>Enviar mensaje por Topic</h3>
-  <div class="message-form">
-    <input type="text" id="topicInput" placeholder="Topic (Nick de usuario o región)" />
-    <textarea id="messageInput" placeholder="Escribe tu mensaje aquí..."></textarea>
-    <button class="send-btn" id="sendMessageBtn">Enviar Mensaje</button>
-  </div>
-</div>
+<button id="toggleMessages">💬</button>
 
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-
 <script>
-// --- Configuración Firebase ---
-const firebaseConfig = {
-  apiKey: "AIzaSyCsM5ynPDbJCUV7HXq5NA3mmIXKxczc_RA",
-  authDomain: "sypherionmaps.firebaseapp.com",
-  databaseURL: "https://sypherionmaps-default-rtdb.firebaseio.com",
-  projectId: "sypherionmaps",
-  storageBucket: "sypherionmaps.firebasestorage.app",
-  messagingSenderId: "529754955214",
-  appId: "1:529754955214:web:c6b25dbafc9172eeb8df9f"
-};
-const app = firebase.initializeApp(firebaseConfig);
-const database = firebase.database();
+// --- Firebase ---
+const firebaseConfig={apiKey:"AIzaSyCsM5ynPDbJCUV7HXq5NA3mmIXKxczc_RA",authDomain:"sypherionmaps.firebaseapp.com",databaseURL:"https://sypherionmaps-default-rtdb.firebaseio.com",projectId:"sypherionmaps",storageBucket:"sypherionmaps.firebasestorage.app",messagingSenderId:"529754955214",appId:"1:529754955214:web:c6b25dbafc9172eeb8df9f"};
+firebase.initializeApp(firebaseConfig);const db=firebase.database();
 
 // --- Mapa ---
-const map = L.map('map').setView([0,0],2);
-L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',{
-  attribution:'&copy; OpenStreetMap &copy; Carto',
-  subdomains:'abcd',
-  maxZoom:20
-}).addTo(map);
+const map=L.map("map").setView([0,0],2);
+L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",{subdomains:"abcd"}).addTo(map);
+const greenIcon=L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64572.png",iconSize:[40,40],iconAnchor:[20,40]});
+const redIcon=L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64576.png",iconSize:[40,40],iconAnchor:[20,40]});
 
-const greenIcon = L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64572.png",iconSize:[50,50],iconAnchor:[25,50],popupAnchor:[0,-50]});
-const redIcon = L.icon({iconUrl:"https://cdn-icons-png.flaticon.com/512/64/64576.png",iconSize:[50,50],iconAnchor:[25,50],popupAnchor:[0,-50]});
+let currentKey="",userMarker,userCircle,users={},markers={},info={};
 
-let currentUserKey="", userMarker=null, userCircle=null, markers={}, users={}, topicRegion="", positionUpdateInterval;
-let info={};
+// Dibujar línea temporal
+function drawLine(from,to,color="#0af"){const line=L.polyline([from,to],{color,weight:3}).addTo(map);setTimeout(()=>map.removeLayer(line),60000);}
 
-// --- Funciones ---
-function drawLine(fromLatLng,toLatLng,color='#3498db'){
-  const line=L.polyline([fromLatLng,toLatLng],{color,weight:3}).addTo(map);
-  setTimeout(()=>map.removeLayer(line),10000);
-}
+// Chat popup efímero
+function showChatPopup(text){const div=document.createElement("div");div.className="chat-popup";div.textContent=text;document.body.appendChild(div);setTimeout(()=>div.remove(),15000);}
 
-function updateUserList(){
-  const userList = document.getElementById('userList'); userList.innerHTML='';
-  for(const key in users){
-    const user=users[key];
-    const userItem=document.createElement('div');
-    userItem.className='user-item';
-    userItem.innerHTML=`<div class="status-indicator ${user.online?'status-online':'status-offline'}"></div><div>${user.nick}${key===currentUserKey?' (Tú)':''}</div>`;
-    userList.appendChild(userItem);
-    if(markers[key]){
-      markers[key].setLatLng([user.latitude,user.longitude]);
-      markers[key].setIcon(user.online?greenIcon:redIcon);
-      markers[key].setPopupContent(`${user.nick}${user.online?'':' (Desconectado)'}`);
-    } else {
-      markers[key]=L.marker([user.latitude,user.longitude],{icon:user.online?greenIcon:redIcon}).addTo(map)
-      .bindPopup(`${user.nick}${user.online?'':' (Desconectado)'}`);
-    }
-  }
-}
+// Lista usuarios
+function updateUsers(){const list=document.getElementById("userList");list.innerHTML="";for(const k in users){let u=users[k];let item=document.createElement("div");item.className="user-item";item.innerHTML=`<div class="status-indicator ${u.online?"status-online":"status-offline"}"></div>${u.nick}${k===currentKey?" (Tú)":""}`;list.appendChild(item);
+ if(markers[k]){markers[k].setLatLng([u.latitude,u.longitude]).setIcon(u.online?greenIcon:redIcon).setPopupContent(`${u.nick}${u.online?"":" (off)"}`);}
+ else{markers[k]=L.marker([u.latitude,u.longitude],{icon:u.online?greenIcon:redIcon}).addTo(map).bindPopup(u.nick);}}}
 
-// --- Escuchar usuarios y líneas ---
-database.ref("usuarios_online").on('value', snapshot => { users=snapshot.val()||{}; updateUserList(); });
-database.ref("lineas").on("child_added", snapshot=>{
-  const line=snapshot.val();
-  drawLine([line.fromLat,line.fromLon],[line.toLat,line.toLon], line.color);
-});
+// Eventos Firebase
+db.ref("usuarios_online").on("value",s=>{users=s.val()||{};updateUsers()});
+db.ref("lineas").on("child_added",s=>{let l=s.val();drawLine([l.fromLat,l.fromLon],[l.toLat,l.toLon],l.color);setTimeout(()=>db.ref("lineas/"+s.key).remove(),60000);});
 
-// --- Obtener ubicación ---
-function getLocationAndSend(nick){
-  if(!navigator.geolocation) return alert("No soporta geolocalización");
+// Conexión usuario
+function connectUser(nick){navigator.geolocation.getCurrentPosition(async p=>{
+ let lat=p.coords.latitude,lon=p.coords.longitude;
+ if(userMarker)map.removeLayer(userMarker);if(userCircle)map.removeLayer(userCircle);
+ userMarker=L.marker([lat,lon],{icon:greenIcon}).addTo(map).bindPopup("🟢 "+nick+" (Tú)").openPopup();
+ userCircle=L.circle([lat,lon],{color:"#0f0",fillColor:"#0f0",fillOpacity:.3,radius:100}).addTo(map);
+ info={nick,latitude:lat,longitude:lon,timestamp:Date.now()};
+ const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);const d=await res.json();
+ info.country=d.address.country||"Unknown";info.city=d.address.city||d.address.town||d.address.village||"Unknown";info.region=(info.country+info.city).replace(/\s+/g,"");
+ const ref=db.ref("usuarios_online");ref.orderByChild("nick").equalTo(nick).once("value",snap=>{
+   if(snap.exists()){snap.forEach(ch=>{currentKey=ch.key;db.ref("usuarios_online/"+currentKey).update({...info,online:true})});}
+   else{let newRef=ref.push();currentKey=newRef.key;newRef.set({...info,online:true});}
+ });
+ document.getElementById("status").textContent="Conectado";document.getElementById("status").className="status online";
+ setInterval(()=>navigator.geolocation.getCurrentPosition(p=>{let lat=p.coords.latitude,lon=p.coords.longitude;if(currentKey)db.ref("usuarios_online/"+currentKey).update({latitude:lat,longitude:lon,timestamp:Date.now()});userMarker.setLatLng([lat,lon]);userCircle.setLatLng([lat,lon]);}),5000);
+});}
 
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const lat=pos.coords.latitude, lon=pos.coords.longitude;
-    map.setView([lat, lon],13);
+// Enviar mensaje
+async function sendMessage(topic,msg){if(!currentKey)return alert("Conéctate primero");
+ let targetUser=null,targetRegion=null;
+ for(const k in users){if(users[k].nick===topic)targetUser=users[k];if(users[k].region===topic)targetRegion=users[k];}
+ let toLat,toLon,color="#0af";
+ if(targetUser){toLat=targetUser.latitude;toLon=targetUser.longitude;color="#0af";if(targetUser.nick!==info.nick)showChatPopup(`${info.nick}: ${msg}`);}
+ else if(targetRegion){toLat=targetRegion.latitude;toLon=targetRegion.longitude;color="#fa0";showChatPopup(`[${topic}] ${info.nick}: ${msg}`);}
+ else return alert("Topic desconocido");
+ db.ref("lineas").push().set({fromLat:info.latitude,fromLon:info.longitude,toLat,toLon,color});}
 
-    if(userMarker) map.removeLayer(userMarker);
-    if(userCircle) map.removeLayer(userCircle);
+// Botones
+document.getElementById("startBtn").onclick=()=>{let n=document.getElementById("nick").value.trim();if(n)connectUser(n)};
+document.getElementById("sendMessageBtn").onclick=()=>{let t=document.getElementById("topicInput").value.trim(),m=document.getElementById("messageInput").value.trim();if(t&&m)sendMessage(t,m);document.getElementById("messageInput").value=""};
+document.getElementById("toggleMessages").onclick=()=>document.getElementById("messagePanel").classList.toggle("show");
 
-    userMarker = L.marker([lat, lon], {icon: greenIcon}).addTo(map).bindPopup(`🟢 ${nick} (Tú)`).openPopup();
-    userCircle = L.circle([lat, lon],{color:'#00ff00',fillColor:'#00ff00',fillOpacity:0.3,radius:100}).addTo(map);
-    let growing=true;
-    setInterval(()=>{ let r=userCircle.getRadius(); if(r>=200) growing=false; if(r<=100) growing=true; userCircle.setRadius(growing?r+5:r-5); },100);
-
-    // Fingerprint básico
-    info={nick, latitude:lat, longitude:lon, timestamp:Date.now()};
-    try{
-      const res=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-      const data=await res.json();
-      info.country = data.address.country || "Unknown";
-      info.city = data.address.city || data.address.town || data.address.village || "Unknown";
-      topicRegion = (info.country+info.city).replace(/\s+/g,'').replace(/\//g,'');
-    }catch(e){ console.log(e); }
-
-    // Guardar o actualizar usuario en Firebase
-    const usersRef=database.ref("usuarios_online");
-    usersRef.orderByChild("nick").equalTo(nick).once("value", snapshot=>{
-      if(snapshot.exists()){
-        snapshot.forEach(child=>{
-          currentUserKey=child.key;
-          database.ref("usuarios_online/"+currentUserKey).update({...info, online:true});
-        });
-      } else {
-        const newUserRef=usersRef.push();
-        currentUserKey=newUserRef.key;
-        newUserRef.set({...info, online:true});
-      }
-    });
-
-    document.getElementById("status").textContent="Conectado";
-    document.getElementById("status").className="status online";
-
-    if(positionUpdateInterval) clearInterval(positionUpdateInterval);
-    positionUpdateInterval = setInterval(()=>{
-      navigator.geolocation.getCurrentPosition(pos=>{
-        const lat=pos.coords.latitude, lon=pos.coords.longitude;
-        if(currentUserKey) database.ref("usuarios_online/"+currentUserKey).update({latitude:lat,longitude:lon,timestamp:Date.now()});
-        userMarker.setLatLng([lat, lon]);
-        userCircle.setLatLng([lat, lon]);
-      });
-    },5000);
-  },err=>{ alert("No se pudo obtener ubicación: "+err.message); document.getElementById("status").textContent="Error de geolocalización"; document.getElementById("status").className="status offline"; });
-}
-
-// --- Enviar mensaje al topic ---
-async function sendMessageToTopic(topic,message){
-  if(!currentUserKey) return alert("Debes estar conectado");
-
-  // Enviar a NTFY solo Nick: mensaje
-  try { await fetch(`https://ntfy.sh/${topic}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(`${info.nick}: ${message}`)}); }
-  catch(e){console.error(e);}
-
-  // Determinar destinatario
-  let targetUser=null, targetRegion=null;
-  for(const key in users){
-    if(users[key].nick===topic) targetUser=users[key];
-    const region=(users[key].country+users[key].city).replace(/\s+/g,'').replace(/\//g,'');
-    if(region===topic) targetRegion=users[key];
-  }
-
-  let color='#3498db', toLat, toLon;
-  if(targetUser){ color='#3498db'; toLat=targetUser.latitude; toLon=targetUser.longitude; }
-  else if(targetRegion){ color='#e67e22'; toLat=targetRegion.latitude; toLon=targetRegion.longitude; }
-  else return alert("Topic desconocido");
-
-  // Guardar línea en Firebase
-  database.ref("lineas").push().set({fromLat:info.latitude,fromLon:info.longitude,toLat,toLon,color});
-}
-
-// --- Eventos ---
-document.getElementById("startBtn").onclick=()=>{ const nick=document.getElementById("nick").value.trim(); if(!nick)return alert("Escribe un Nick"); getLocationAndSend(nick); };
-document.getElementById("sendMessageBtn").onclick=()=>{ const topic=document.getElementById("topicInput").value.trim(); const message=document.getElementById("messageInput").value.trim(); if(!topic||!message)return alert("Debes especificar topic y mensaje"); sendMessageToTopic(topic,message); document.getElementById("messageInput").value=''; };
-
-// --- Antes de cerrar ---
-window.addEventListener("beforeunload",()=>{
-  if(currentUserKey){
-    database.ref("usuarios_online/"+currentUserKey).update({online:false,timestamp:Date.now()});
-  }
-});
+// Desconexión
+window.addEventListener("beforeunload",()=>{if(currentKey)db.ref("usuarios_online/"+currentKey).update({online:false,timestamp:Date.now()})});
 </script>
 </body>
 </html>
