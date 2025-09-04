@@ -1,361 +1,93 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Anonox Clan</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-  :root{--neon:#00ff00;--bg:#121212;}
-  *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--neon);font-family:monospace;display:flex;flex-direction:column;align-items:center}
-  h2{margin:18px 0}
-  input,button,textarea{padding:10px;margin:5px;font-size:16px;background:#1e1e1e;color:var(--neon);border:1px solid var(--neon);border-radius:8px}
-  textarea{width:100%;max-width:680px;height:90px;resize:vertical}
-  button{cursor:pointer}button:hover{background:#2a2a2a}
-  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:center}
-  .map-wrap{width:92%;max-width:1000px;margin:10px 0;border-radius:16px;overflow:hidden;box-shadow:0 0 30px rgba(0,0,0,.6)}
-  #map{width:100%;height:520px}
-  .status{padding:8px 12px;border-radius:6px;margin:6px 0}
-  .online{background:#004d00}.offline{background:#4d0000}
-  .panel{background:#1e1e1e;border-radius:12px;padding:12px;margin:10px;width:92%;max-width:1000px}
-  .users{display:flex;flex-wrap:wrap;gap:8px}
-  .user{background:#222;padding:6px 10px;border-radius:8px;display:flex;align-items:center;gap:6px}
-  .dot{width:10px;height:10px;border-radius:50%}
-  .dot.on{background:#00ff00;box-shadow:0 0 6px #00ff00}.dot.off{background:#ff0000}
-  /* Mensajes desplegables */
-  #toggleMessages{position:fixed;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--neon);color:#000;font-weight:700;font-size:22px;box-shadow:0 0 12px var(--neon)}
-  #messagePanel{max-height:0;overflow:hidden;transition:max-height .45s ease,padding .3s ease;background:#1b1b1b}
-  #messagePanel.show{max-height:420px;padding:14px}
-  .msg-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
-  .field{width:100%;max-width:680px}
-  /* Popups efímeros */
-  .toast{position:fixed;right:20px;bottom:90px;background:#000;border:1px solid var(--neon);color:var(--neon);padding:10px 12px;border-radius:10px;max-width:320px;opacity:.95;animation:pop .35s ease}
-  @keyframes pop{from{opacity:0;transform:translateY(10px)}to{opacity:.95;transform:translateY(0)}}
-</style>
-</head>
-<body>
-  <h2>Anonox Clan</h2>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Anonox Clan — Map + Perfil</title>
 
-  <div class="row">
-    <input id="nick" placeholder="Tu Nick"/>
-    <button id="startBtn">Iniciar Seguimiento</button>
-  </div>
-
-  <div id="status" class="status offline">Desconectado</div>
-
-  <div class="map-wrap"><div id="map"></div></div>
-
-  <div class="panel">
-    <h3>Usuarios conectados</h3>
-    <div id="usersList" class="users"></div>
-  </div>
-
-  <!-- Panel de mensajes (toggle con botón flotante) -->
-  <div id="messagePanel" class="panel">
-    <h3>Enviar mensaje</h3>
-    <div class="msg-row">
-      <input id="topicInput" class="field" placeholder="Topic: Nick exacto o Región (país+ciudad sin espacios)"/>
-      <textarea id="messageInput" class="field" placeholder="Escribe tu mensaje..."></textarea>
-      <button id="sendMessageBtn">Enviar</button>
-    </div>
-    <small>• A Nick: solo ese usuario ve el mensaje en su pantalla (efímero).<br>
-    • A Región: todos los usuarios de esa región lo ven a la vez.<br>
-    • Mensajes expiran a la hora; líneas en el mapa se borran al minuto.</small>
-  </div>
-  <button id="toggleMessages">💬</button>
-
-  <!-- Libs -->
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+  <!-- Firebase compat (RTDB + Firestore compat) -->
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
 
-  <script>
-  // ===== Firebase (Realtime Database) =====
-  const firebaseConfig = {
-    apiKey: "AIzaSyCsM5ynPDbJCUV7HXq5NA3mmIXKxczc_RA",
-    authDomain: "sypherionmaps.firebaseapp.com",
-    databaseURL: "https://sypherionmaps-default-rtdb.firebaseio.com",
-    projectId: "sypherionmaps",
-    storageBucket: "sypherionmaps.firebasestorage.app",
-    messagingSenderId: "529754955214",
-    appId: "1:529754955214:web:c6b25dbafc9172eeb8df9f"
-  };
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+  <!-- Estilos -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- SIDEBAR PERFIL (Firestore "perfiles" DB, app2) -->
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <h2 class="title">👤 Perfil (Admin)</h2>
+      <button id="closeSidebarBtn" class="btn close-btn">✕</button>
+    </div>
 
-  // ===== Mapa =====
-  const map = L.map('map').setView([0,0], 2);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {subdomains:'abcd', maxZoom:20}).addTo(map);
+    <div class="center">
+      <img id="avatarPreview" src="https://via.placeholder.com/150" class="avatar" alt="avatar">
+    </div>
 
-  // ===== Estado global =====
-  let me = { key:"", nick:"", lat:null, lon:null, country:"", city:"", region:"" };
-  const userMarkers = {}; // key -> circleMarker
-  const users = {};       // key -> user data
+    <label>Nombre</label>
+    <input id="nameInput" type="text" />
 
-  // ===== UI =====
-  const $ = s => document.querySelector(s);
-  const statusEl = $('#status');
-  const usersList = $('#usersList');
+    <label>Usuario</label>
+    <input id="usernameInput" type="text" />
 
-  // Toast efímero en pantalla (para mensajes recibidos)
-  function toast(msg, ms=15000){
-    const t = document.createElement('div');
-    t.className = 'toast';
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(()=> t.remove(), ms);
-  }
+    <label>Bio</label>
+    <textarea id="bioInput"></textarea>
 
-  // Crear/actualizar un punto de usuario (verde/rojo)
-  function upsertUserMarker(key, data){
-    const color = data.online ? '#00ff00' : '#ff0000';
-    if(!userMarkers[key]){
-      userMarkers[key] = L.circleMarker([data.latitude, data.longitude], {
-        radius: 8, color, fillColor: color, fillOpacity: 0.85
-      }).addTo(map).bindPopup(`${data.nick}${key===me.key?' (Tú)':''}`);
-    } else {
-      userMarkers[key].setLatLng([data.latitude, data.longitude]);
-      userMarkers[key].setStyle({color, fillColor: color});
-      userMarkers[key].setPopupContent(`${data.nick}${key===me.key?' (Tú)':''}`);
-    }
-  }
+    <label>Sitio web</label>
+    <input id="websiteInput" type="url" />
 
-  // Pintar lista de usuarios
-  function renderUsersList(){
-    usersList.innerHTML = '';
-    Object.entries(users).forEach(([key,u])=>{
-      const div = document.createElement('div');
-      div.className = 'user';
-      div.innerHTML = `<span class="dot ${u.online?'on':'off'}"></span>${u.nick}${key===me.key?' (Tú)':''}`;
-      usersList.appendChild(div);
-    });
-  }
+    <div class="grid3">
+      <input id="postsInput" type="number" placeholder="posts" />
+      <input id="followersInput" type="number" placeholder="followers" />
+      <input id="followingInput" type="number" placeholder="following" />
+    </div>
 
-  // Escuchar usuarios en tiempo real
-  db.ref('usuarios_online').on('value', snap=>{
-    const val = snap.val() || {};
-    for(const k in val){
-      users[k] = val[k];
-      // asegurar region calculada si faltara
-      if(!users[k].region){
-        const r = ((users[k].country||'')+(users[k].city||'')).replace(/\s+/g,'').replace(/\//g,'');
-        users[k].region = r;
-      }
-      upsertUserMarker(k, users[k]);
-    }
-    renderUsersList();
-  });
+    <label>Avatar (subir)</label>
+    <input id="avatarFile" type="file" accept="image/*" />
+    <div class="small">El avatar se guarda como Base64 en Firestore.</div>
 
-  // Líneas: dibujar y autolimpiar (DB + mapa)
-  function drawLine(from, to, color='#0af'){
-    const line = L.polyline([from,to], {color, weight:3}).addTo(map);
-    setTimeout(()=> map.removeLayer(line), 60000); // quitar del mapa en 60s
-  }
-  db.ref('lineas').on('child_added', s=>{
-    const LN = s.val();
-    if(!LN) return;
-    drawLine([LN.fromLat, LN.fromLon], [LN.toLat, LN.toLon], LN.color||'#0af');
-    // TTL de líneas en DB: 60s
-    const now = Date.now();
-    const ttl = 60000;
-    if ((now - (LN.timestamp||now)) > ttl){
-      db.ref('lineas/'+s.key).remove();
-    } else {
-      setTimeout(()=> db.ref('lineas/'+s.key).remove(), ttl - (now - (LN.timestamp||now)));
-    }
-  });
+    <!-- Solo lectura: Gmail / Password -->
+    <div class="readonly">
+      <p class="muted">📧 Gmail (solo lectura)</p>
+      <p id="gmailDisplay" class="readonlyField">—</p>
 
-  // Conectar usuario (geoloc + alta/actualización)
-  function connectUser(nick){
-    if(!navigator.geolocation){ alert('Tu navegador no soporta geolocalización'); return; }
-    me.nick = nick;
+      <p class="muted">🔑 Password (solo lectura)</p>
+      <p id="passwordDisplay" class="readonlyField">—</p>
+    </div>
 
-    navigator.geolocation.getCurrentPosition(async pos=>{
-      const {latitude:lat, longitude:lon} = pos.coords;
-      me.lat = lat; me.lon = lon;
+    <button id="saveProfileBtn" class="btn">💾 Guardar perfil</button>
 
-      // Obtener país/ciudad (para región)
-      try{
-        const r = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`);
-        const j = await r.json();
-        me.country = j.address?.country || 'Unknown';
-        me.city = j.address?.city || j.address?.town || j.address?.village || 'Unknown';
-        me.region = (me.country + me.city).replace(/\s+/g,'').replace(/\//g,'');
-      }catch(e){ me.country='Unknown'; me.city='Unknown'; me.region='UnknownUnknown'; }
+    <div class="note">Nota: gmail / password no las proporcionamos — solo se muestran si existen en la DB.</div>
+  </aside>
 
-      // Crear/actualizar en RTDB por nick único
-      const usersRef = db.ref('usuarios_online');
-      usersRef.orderByChild('nick').equalTo(nick).once('value', snap=>{
-        if(snap.exists()){
-          snap.forEach(ch=>{
-            me.key = ch.key;
-            db.ref('usuarios_online/'+me.key).update({
-              nick: me.nick, latitude: me.lat, longitude: me.lon,
-              country: me.country, city: me.city, region: me.region,
-              online: true, timestamp: Date.now()
-            });
-          });
-        } else {
-          const newRef = usersRef.push();
-          me.key = newRef.key;
-          newRef.set({
-            nick: me.nick, latitude: me.lat, longitude: me.lon,
-            country: me.country, city: me.city, region: me.region,
-            online: true, timestamp: Date.now()
-          });
-        }
-      });
+  <!-- MAIN: Mapa + Chat -->
+  <div class="main">
+    <div class="topbar">
+      <button id="toggleSidebarBtn" class="btn">☰ Perfil</button>
+      <input id="nick" type="text" placeholder="Tu Nick" class="nick-input" />
+      <button id="startBtn" class="btn">Iniciar Seguimiento</button>
+    </div>
 
-      // centrar mapa
-      map.setView([lat,lon], 13);
+    <div id="map" class="map"></div>
 
-      // pulso suave en mi ubicación (anillo)
-      const ring = L.circle([lat,lon], {color:'#00ff00', fillColor:'#00ff00', fillOpacity:0.25, radius:100}).addTo(map);
-      let grow = true;
-      setInterval(()=>{
-        let r = ring.getRadius();
-        if(r>=200) grow=false; if(r<=100) grow=true;
-        ring.setRadius(grow? r+5 : r-5);
-        // actualizar posición periódica
-      }, 110);
+    <div id="usersPanel" class="chatlog">
+      <div class="panelTitle">Usuarios conectados</div>
+      <div id="usersList"></div>
+    </div>
 
-      // actualizar posición periódica (DB + marcador)
-      setInterval(()=>{
-        navigator.geolocation.getCurrentPosition(p=>{
-          const la = p.coords.latitude, lo = p.coords.longitude;
-          me.lat = la; me.lon = lo;
-          if(me.key) db.ref('usuarios_online/'+me.key).update({latitude:la, longitude:lo, timestamp: Date.now()});
-          // actualizar mi anillo y marcador propio si existiera
-          ring.setLatLng([la,lo]);
-          // también refrescar mi marker si ya cargó por listener
-          if(userMarkers[me.key]) userMarkers[me.key].setLatLng([la,lo]);
-        });
-      }, 5000);
+    <div class="chatbar">
+      <input id="topicInput" class="input" placeholder="Topic (nick o región)" />
+      <input id="messageInput" class="input" placeholder="Mensaje..." />
+      <button id="sendBtn" class="btn">Enviar</button>
+    </div>
+  </div>
 
-      statusEl.textContent = 'Conectado'; statusEl.className='status online';
-    }, err=>{
-      alert('No se pudo obtener ubicación: '+err.message);
-      statusEl.textContent='Error de geolocalización'; statusEl.className='status offline';
-    });
-  }
-
-  // ===== Mensajería (RTDB) =====
-  const MENSAJES_PATH = 'mensajes';
-  const LINEAS_PATH   = 'lineas';
-
-  // Detección de destino (Nick o Región)
-  function encontrarDestino(topic){
-    let targetUser = null;
-    let regionUsers = [];
-    // normalizar topic de región
-    const topicReg = topic.replace(/\s+/g,'').replace(/\//g,'');
-    for(const k in users){
-      const u = users[k];
-      const reg = (u.region) ? u.region : ((u.country||'')+(u.city||'')).replace(/\s+/g,'').replace(/\//g,'');
-      if(u.nick === topic){ targetUser = {...u, key:k}; }
-      if(reg === topicReg){ regionUsers.push({...u, key:k}); }
-    }
-    return {targetUser, regionUsers, topicRegion: topicReg};
-  }
-
-  // Centroid de una región (promedio de coords)
-  function centroid(usersArr){
-    if(!usersArr.length) return null;
-    let sx=0, sy=0;
-    usersArr.forEach(u=>{ sx+=u.latitude; sy+=u.longitude; });
-    return [sx/usersArr.length, sy/usersArr.length];
-  }
-
-  // Enviar mensaje: guarda en DB, dibuja línea y TTL
-  function enviarMensaje(topic, text){
-    if(!me.key){ alert('Conéctate primero'); return; }
-    if(!text){ alert('Escribe un mensaje'); return; }
-    const {targetUser, regionUsers, topicRegion} = encontrarDestino(topic);
-
-    let tipo = '', to = '', toLatLon = null, color = '#0af';
-    if(targetUser){
-      tipo='user'; to = targetUser.nick; color = '#0af'; // azul
-      toLatLon = [targetUser.latitude, targetUser.longitude];
-    } else if(regionUsers.length){
-      tipo='region'; to = topicRegion; color = '#e67e22'; // naranja
-      const c = centroid(regionUsers);
-      if(!c){ alert('No hay usuarios en esa región ahora'); return; }
-      toLatLon = c;
-    } else {
-      alert('Topic desconocido (Nick o Región)');
-      return;
-    }
-
-    const now = Date.now();
-    const msgRef = db.ref(MENSAJES_PATH).push();
-    const msgObj = { from: me.nick, to, type: tipo, text, timestamp: now, expiresAt: now + 3600000 }; // 1h
-    msgRef.set(msgObj);
-
-    // Línea en DB (TTL 60s)
-    const lineaRef = db.ref(LINEAS_PATH).push();
-    const ln = {fromLat: me.lat, fromLon: me.lon, toLat: toLatLon[0], toLon: toLatLon[1], color, timestamp: now};
-    lineaRef.set(ln);
-    // por si el emisor está solo: limpia la línea en 60s
-    setTimeout(()=> db.ref(LINEAS_PATH+'/'+lineaRef.key).remove(), 60000);
-  }
-
-  // Mostrar mensajes SOLO al destinatario (Nick) o a toda la región si aplica
-  db.ref(MENSAJES_PATH).on('child_added', s=>{
-    const m = s.val(); if(!m) return;
-    const now = Date.now();
-
-    // TTL mensajes 1h (limpieza proactiva en cada cliente)
-    const ttlMs = 3600000;
-    if((now - (m.timestamp||now)) > ttlMs){ db.ref(MENSAJES_PATH+'/'+s.key).remove(); return; }
-    else { setTimeout(()=> db.ref(MENSAJES_PATH+'/'+s.key).remove(), (m.expiresAt||m.timestamp+ttlMs) - now); }
-
-    // Mostrar si soy destino (Nick) o si estoy en la región destino
-    if(m.type === 'user' && me.nick && m.to === me.nick){
-      toast(`${m.from}: ${m.text}`, 15000);
-    } else if(m.type === 'region' && me.region && m.to === me.region){
-      toast(`[${m.to}] ${m.from}: ${m.text}`, 15000);
-    }
-  });
-
-  // ===== Eventos UI =====
-  document.getElementById('startBtn').onclick = ()=>{
-    const n = document.getElementById('nick').value.trim();
-    if(!n) return alert('Escribe tu Nick');
-    connectUser(n);
-  };
-  document.getElementById('sendMessageBtn').onclick = ()=>{
-    const topic = document.getElementById('topicInput').value.trim();
-    const msg = document.getElementById('messageInput').value.trim();
-    if(!topic) return alert('Especifica un Nick o Región');
-    enviarMensaje(topic, msg);
-    document.getElementById('messageInput').value='';
-  };
-  document.getElementById('toggleMessages').onclick = ()=>{
-    document.getElementById('messagePanel').classList.toggle('show');
-  };
-
-  // Marcar offline al cerrar
-  window.addEventListener('beforeunload', ()=>{
-    if(me.key){ db.ref('usuarios_online/'+me.key).update({online:false, timestamp: Date.now()}); }
-  });
-
-  // Limpiezas periódicas (por si quedan clientes desconectados)
-  setInterval(()=>{
-    const cutoffMsg = Date.now() - 3600000; // 1h
-    db.ref(MENSAJES_PATH).once('value', snap=>{
-      snap.forEach(ch=>{
-        const v = ch.val(); if(v && (v.timestamp||0) < cutoffMsg){ ch.ref.remove(); }
-      });
-    });
-    const cutoffLine = Date.now() - 60000; // 1 min
-    db.ref(LINEAS_PATH).once('value', snap=>{
-      snap.forEach(ch=>{
-        const v = ch.val(); if(v && (v.timestamp||0) < cutoffLine){ ch.ref.remove(); }
-      });
-    });
-  }, 120000); // cada 2 minutos
-
-  </script>
+  <!-- JavaScript -->
+  <script src="app.js"></script>
 </body>
 </html>
